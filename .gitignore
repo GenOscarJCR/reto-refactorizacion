@@ -1,0 +1,11 @@
+# Entornos virtuales
+venv/
+
+# Archivos de caché de Python y pruebas
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Archivos del sistema operativo (macOS)
+.DS_Store
+__MACOSX/
