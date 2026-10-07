@@ -1,0 +1,10 @@
+venv/ 
+.venv/ 
+__pycache__/ 
+*.pyc 
+.pytest_cache/ 
+.ruff_cache/ 
+__MACOSX/ 
+.DS_Store 
+docs/logs/ 
+src/datos_ejemplo.json
