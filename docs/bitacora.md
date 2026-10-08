@@ -164,7 +164,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 
 | #  | Prompt usado | Cambio realizado | Justificación | Tests OK |
 |----|--------------|------------------|---------------|----------|
-| 1  |              |                  |               |          |
+| 1  | R1 — with en persistencia y hay\_archivo (ver 5. R1) | `almacen.py`: `with open(...)` en `guardar_datos`/`cargar_datos`; `hayArchivo` → `hay_archivo` con `return os.path.exists(ruta)`; `main.py` actualizado | Cierre de archivos garantizado; nombre PEP 8; quita if/else redundante. Ruff 13 → 9 (SIM115 x2, N802, SIM103) | 20 passed |
 | 2  |              |                  |               |          |
 | 3  |              |                  |               |          |
 | 4  |              |                  |               |          |
@@ -200,6 +200,39 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 **ruff check src:** 20 → 13 (quedan SIM102 x3, SIM115 x3, C901 x2, N802 x2, SIM108, N816, SIM103).
 
 **Mi observacion** Claude revisó el diff con --fix --diff antes de aplicar y no usó --unsafe-fixes. Los 7 arreglos no tocan la lógica. Lo acepto. Nota: el commit incluyó también mis cambios previos a la bitácora (secciones 2 a 3.6)
+
+### R1 — with en persistencia y hay_archivo
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R1 — usar with en la persistencia y renombrar/simplificar hayArchivo a hay_archivo. Smells: S15, S18, S19 (solo almacen.py), descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Solo modifica src/almacen.py, src/main.py y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico. cargar_datos debe seguir devolviendo False con el mismo mensaje de error.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R1: with en persistencia y hay_archivo - N passed, ruff X"</commit>
+```
+
+**Cambio:**
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/almacen.py` | `guardar_datos`: `f = open(...)` + `f.close()` → `with open(ruta, "w", encoding="utf-8") as f:` | SIM115 | S19 |
+| `src/almacen.py` | `cargar_datos`: `with open(ruta, encoding="utf-8") as f:` con el `try/except Exception` dentro; se quitan los dos `f.close()` manuales | SIM115 | S19 |
+| `src/almacen.py` | `hayArchivo` → `hay_archivo`; cuerpo `return os.path.exists(ruta)`; el comentario pasa a docstring | N802, SIM103 | S15, S18 |
+| `src/main.py` | Llamada `almacen.hayArchivo(ARCHIVO)` → `almacen.hay_archivo(ARCHIVO)` | — | S15 |
+
+Sin type hints (quedan para R9). `reporteViejoCSV` (SIM115 en `reportes.py`) no se tocó: es código muerto reservado para R2.
+
+**Justificación:** `with` garantiza el cierre del archivo aunque `json.load`/`json.dump` lancen excepción, y elimina el `f.close()` duplicado en `cargar_datos`. El `except Exception` se mantuvo sin estrechar, y el `return False` dentro del `with` cierra el archivo igual que antes. `hay_archivo` sigue PEP 8 y `os.path.exists` ya devuelve `bool`, así que el `if/else` era redundante. Ningún test usa `hayArchivo`; su único llamador es `main.py`.
+
+**Verificación extra (manual):** archivo corrupto → `False`, `ultimo_error = "archivo corrupto"`; archivo inexistente → `False`, `"el archivo no existe"`; `hay_archivo` → `True`/`False` según exista.
+
+**pytest:** 20 passed.
+**ruff check src:** 13 → 9 (quedan N816, C901 x2, SIM108, SIM102 x3, N802 y SIM115 de `reporteViejoCSV`).
+
+
+**Mi observacion** Claude propuso type hints fuera de alcance; los rechacé para mantener el refactor atómico, porque van en R9. También detectó la doble numeración en plan-refactor.md y eligió la del plan final.
 
 ## 6. Ajustes a CLAUDE.md
 
