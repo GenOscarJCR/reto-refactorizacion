@@ -412,6 +412,7 @@ Acepté type hints solo en las funciones nuevas. Pedí una verificación con cas
 **ruff check src:** 1 → 0 (se fue C901 de `menu`). `All checks passed!`
 
 **Mi observacion**
+Claude comparó la consola por stdin (272 y 81 líneas idénticas). Admitió que un comando python leyó datos_ejemplo.json saltándose mi regla deny, lo que confirma la limitación documentada: deny no cubre subprocesos. Lo acepto.
 
 ## 6. Ajustes a CLAUDE.md
 
