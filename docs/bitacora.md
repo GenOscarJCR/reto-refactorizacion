@@ -264,6 +264,7 @@ Sin type hints, como pedí. Claude verificó a mano los casos de archivo corrupt
 **pytest:** 20 passed.
 **ruff check src:** 9 → 7 (quedan N816, C901 x2, SIM108, SIM102 x3).
 
+**Mi observacion** Claude confirmó con búsqueda que no había referencias antes y después de borrar. Se saltó el plan previo de CLAUDE.md por interpretar mi autorización como aprobación. Lo acepto, y aclaro la regla en CLAUDE.md v3.
 
 
 ## 6. Ajustes a CLAUDE.md

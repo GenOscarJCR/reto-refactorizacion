@@ -110,6 +110,13 @@ Antes de editar código:
 
 1. Plan breve: qué *smell* se ataca y cómo.
 2. Archivos afectados.
-3. **Esperar aprobación** antes de aplicar el cambio.
+3. Aprobación, según el riesgo del refactor:
+   - **Riesgo bajo** (cambios mecánicos, eliminar código muerto, extraer constantes,
+     renombrados, type hints): si el prompt autoriza aplicarlo, se aplica directamente
+     tras mostrar el plan, sin esperar confirmación. Si el prompt no lo autoriza
+     explícitamente, **esperar aprobación**.
+   - **Riesgo medio/alto** (cálculo de precios, dividir `registrar_venta`, dividir el menú
+     de `main.py`): presentar **siempre** el plan y **esperar aprobación** antes de aplicar
+     el cambio, aunque el prompt pida aplicarlo directamente.
 
 Después de aplicarlo, reportar el resultado de `pytest` y de `ruff check src`.
