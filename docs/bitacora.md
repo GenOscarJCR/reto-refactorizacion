@@ -169,6 +169,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 | 3  | R3 — constantes con nombre (ver 5. R3) | `gestor.py`: constantes `UMBRAL_DESCUENTO_ALTO/MEDIO`, `TASA_DESCUENTO_ALTO/MEDIO`, `PREFIJO_VIP`, `MONTO_MINIMO_VIP`, `TASA_EXTRA_VIP`, `TASA_IVA` en `registrar_venta` y `cotizar`; `reportes.py`: `STOCK_MINIMO` en `productos_stock_bajo` y `reporte_inventario` | Reglas de negocio con nombre y en un solo lugar; mismos valores numéricos. Ruff 7 → 7 (no hay regla activa para números mágicos) | 20 passed |
 | 4  | R4 — renombrados claros (ver 5. R4) | `gestor.py`: `contadorVentas` → `contador_ventas` y locales (`x`, `aux`, `temp2`, `desc`, `t`, `k`) con nombres descriptivos; `reportes.py`: `hacer_cosa` → `formatear_dinero` y locales (`s`, `t`, `aux`, `temp`, `p`, `k`, `v`); `almacen.py`: referencias a `contador_ventas` y locales (`d`, `f`, `k`, `v`) | Nombres que dicen qué guardan; `contador_ventas` sigue PEP 8. Claves de dicts/JSON intactas. Ruff 7 → 5 (N816; SIM108 deja de reportarse porque el ternario ya no cabe en 88 caracteres) | 20 passed |
 | 5  | R5 — cálculo de precios común + VIP (ver 5. R5) | `gestor.py`: nuevas `_calcular_descuento_volumen`, `_es_cliente_vip` y `_calcular_montos(subtotal, cliente=None, aplica_vip=False)` con type hints; `registrar_venta` la usa con `aplica_vip=True` y `cotizar` sin VIP | Elimina el cálculo duplicado y los `if` anidados; el VIP queda como opción explícita y `cotizar` sigue sin aplicarlo. Mismos redondeos. Ruff 5 → 1 (SIM102 x3, C901 de `registrar_venta`) | 20 passed |
+| 8  | R8 — dividir menu (ver 5. R8) | `main.py`: una función por opción (`agregar_producto`, `registrar_venta`, `cotizar`, `reporte_inventario`, `resumen_ventas`, `mas_vendidos`, `alertas_stock_bajo`, `guardar_y_salir`), `imprimir_opciones`, diccionario de despacho `ACCIONES` y constante `OPCION_SALIR`; `menu` queda como orquestador | Cada opción se lee y se cambia sola; agregar una opción es una función + una entrada del dict. Salida de consola idéntica (comparada contra `HEAD` por stdin). Ruff 1 → 0 (C901 de `menu`) | 20 passed |
 
 > Agrega más filas si realizas más de 5 refactorizaciones.
 
@@ -377,6 +378,40 @@ Sin cambios en la validación de `registrar_venta`, el folio, el stock, el ticke
 
 **Mi observacion** 
 Acepté type hints solo en las funciones nuevas. Pedí una verificación con casos límite del VIP y de los umbrales, porque es la regla de negocio más frágil y los tests no la cubren completa.
+
+### R8 — dividir menu
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R8 — dividir menu en una función por opción y un diccionario de despacho. Smells: S2, descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Solo modifica src/main.py y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico. Los textos de consola, las opciones y su numeración deben quedar idénticos. main.py no tiene tests: al terminar dime qué opciones debo probar a mano.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R8: dividir menu - N passed, ruff X"</commit>
+```
+
+**Aprobación:** CLAUDE.md lo clasifica como riesgo medio/alto (dividir el menú de `main.py`), así que Claude presentó el plan y esperó aprobación. Al aprobar pedí comparar la salida de consola del commit anterior contra la nueva, alimentando `main.py` por stdin desde `src/`, y no versionar el `datos_ejemplo.json` generado.
+
+**Cambio:**
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/main.py` | Nueva `imprimir_opciones() -> None` con los mismos 9 `print` del menú (línea vacía + opciones 1–8) | — | S2 |
+| `src/main.py` | Un handler `-> None` por opción con el cuerpo de su rama, sin cambios: `agregar_producto`, `registrar_venta`, `cotizar`, `reporte_inventario`, `resumen_ventas`, `mas_vendidos`, `alertas_stock_bajo`, `guardar_y_salir` | — | S2 |
+| `src/main.py` | Diccionario de despacho `ACCIONES: dict[str, Callable[[], None]]` para las opciones `"1"`–`"7"` y constante `OPCION_SALIR = "8"` | — | S2 |
+| `src/main.py` | `menu() -> None`: bienvenida y carga inicial igual; el `while` imprime opciones, lee `op`, sale con `guardar_y_salir()` + `break` si es `OPCION_SALIR`, despacha con `ACCIONES.get(op)` o imprime `"Opcion no valida."` | C901 | S2 |
+
+`pedir_numero`, `ARCHIVO`, los nombres locales (`c`, `cant`, `cli`, …), los textos y el orden de `input`/`print` no cambiaron. La salida queda fuera del diccionario para que el `break` siga visible en el bucle y todos los handlers tengan la misma firma.
+
+**Justificación:** `menu` mezclaba en un solo bloque la presentación del menú, la lectura de datos y la llamada a `gestor`/`reportes`/`almacen` de las 8 opciones (complejidad 17). Con un handler por opción cada caso se entiende y se modifica por separado, y el despacho por diccionario sustituye la cadena `if/elif`: agregar una opción es escribir una función y añadir una entrada. Como los cuerpos se movieron sin tocarlos, los textos y el flujo de entrada son los mismos.
+
+**Verificación extra (manual, por stdin):** un script ejecutó desde `src/` el `main.py` de `HEAD` (d1f8379) y el nuevo con las mismas entradas simuladas, en dos escenarios: (A) sin `datos_ejemplo.json`: reportes vacíos (4–7), altas con stock bajo, con número inválido y reintento, y con código duplicado; venta VIP con descuento, venta sin descuento y los 4 errores (código vacío, no existe, cantidad inválida, stock insuficiente); cotizar válido e inexistente; reportes con datos; opciones inválidas `9`, vacío y `abc`; salir (8). (B) arrancando con el JSON generado en A ("Datos cargados de"): reportes, una venta y salir. **Salidas idénticas** (272 y 81 líneas), sin errores en stderr. El `datos_ejemplo.json` del usuario se respaldó antes y se restauró después; está en `.gitignore` y no se versiona.
+
+**pytest:** 20 passed.
+**ruff check src:** 1 → 0 (se fue C901 de `menu`). `All checks passed!`
+
+**Mi observacion**
 
 ## 6. Ajustes a CLAUDE.md
 
