@@ -339,7 +339,8 @@ Tres líneas de `reportes.py` se partieron en dos para no rebasar 88 caracteres 
 **pytest:** 20 passed.
 **ruff check src:** 7 → 5 (quedan C901 x2, SIM102 x3). Se fue N816 (esperado). SIM108 también dejó de reportarse sin cambio de estructura: ruff no lo sugiere si el ternario resultante pasa de 88 caracteres, y con `descuento`/`subtotal` ya no cabe. El `if/else` anidado sigue ahí y se aplana en R6.
 
-
+**Mi observacion** 
+Claude comparó la salida del commit anterior contra el nuevo (102 líneas idénticas) y aclaró que SIM108 desapareció por longitud de línea, no por un arreglo real. Lo acepto; el anidamiento se atiende en R5.
 
 ## 6. Ajustes a CLAUDE.md
 
