@@ -375,6 +375,9 @@ Sin cambios en la validación de `registrar_venta`, el folio, el stock, el ticke
 **pytest:** 20 passed.
 **ruff check src:** 5 → 1 (se fueron SIM102 x3 y C901 de `registrar_venta`, que bajó de 12 a ≤ 10 al salir los `if` del cálculo; queda C901 de `menu` en `main.py`).
 
+**Mi observacion** 
+Acepté type hints solo en las funciones nuevas. Pedí una verificación con casos límite del VIP y de los umbrales, porque es la regla de negocio más frágil y los tests no la cubren completa.
+
 ## 6. Ajustes a CLAUDE.md
 
 /init
