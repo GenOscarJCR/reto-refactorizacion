@@ -5,6 +5,7 @@ lo fueron parchando varias personas, asi que hay de todo un poco.
 """
 
 from datetime import datetime
+from typing import Any
 
 # ---------------------------------------------------------------
 # Reglas de precios: descuentos por volumen, extra VIP e IVA
@@ -27,7 +28,7 @@ contador_ventas = 0
 ultimo_error = ""
 
 
-def reiniciar_sistema():
+def reiniciar_sistema() -> None:
     """Borra todo el estado del sistema (inventario, ventas y folios)."""
     global contador_ventas, ultimo_error
     INVENTARIO.clear()
@@ -36,7 +37,7 @@ def reiniciar_sistema():
     ultimo_error = ""
 
 
-def agregarProducto(codigo, nombre, precio, stock):
+def agregarProducto(codigo: str | None, nombre: str, precio: float, stock: int) -> bool:
     # valida los datos y da de alta un producto en el inventario
     global ultimo_error
     if codigo is None or codigo == "":
@@ -60,7 +61,7 @@ def agregarProducto(codigo, nombre, precio, stock):
     return True
 
 
-def eliminar_producto(codigo):
+def eliminar_producto(codigo: str) -> bool:
     """Quita un producto del inventario. Regresa False si no existe."""
     global ultimo_error
     if codigo in INVENTARIO:
@@ -70,7 +71,7 @@ def eliminar_producto(codigo):
     return False
 
 
-def actualizar_stock(codigo, cantidad):
+def actualizar_stock(codigo: str, cantidad: int) -> bool:
     """Suma unidades al stock (o resta si la cantidad es negativa)."""
     global ultimo_error
     if codigo not in INVENTARIO:
@@ -84,7 +85,7 @@ def actualizar_stock(codigo, cantidad):
     return True
 
 
-def buscarProducto(texto):
+def buscarProducto(texto: str) -> list[dict[str, Any]]:
     # busca productos cuyo nombre contenga el texto (sin importar mayusculas)
     resultados = []
     for codigo in INVENTARIO:
@@ -127,7 +128,9 @@ def _calcular_montos(
     return descuento, base, impuesto
 
 
-def registrar_venta(codigo, cantidad, cliente=""):
+def registrar_venta(
+    codigo: str | None, cantidad: int | None, cliente: str | None = ""
+) -> dict[str, Any] | None:
     """Registra una venta completa.
 
     Esta funcion hace de todo: valida los datos, calcula descuentos e
@@ -188,7 +191,7 @@ def registrar_venta(codigo, cantidad, cliente=""):
     return venta
 
 
-def cotizar(codigo, cantidad):
+def cotizar(codigo: str, cantidad: int | None) -> float | None:
     """Calcula cuanto costaria una compra sin registrar la venta."""
     global ultimo_error
     if codigo not in INVENTARIO:

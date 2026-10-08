@@ -10,7 +10,7 @@ ARCHIVO = "datos_ejemplo.json"
 OPCION_SALIR = "8"
 
 
-def pedir_numero(mensaje):
+def pedir_numero(mensaje: str) -> float:
     # pide un numero al usuario hasta que escriba algo valido
     while True:
         temp2 = input(mensaje)

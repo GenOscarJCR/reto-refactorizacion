@@ -170,6 +170,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 | 4  | R4 — renombrados claros (ver 5. R4) | `gestor.py`: `contadorVentas` → `contador_ventas` y locales (`x`, `aux`, `temp2`, `desc`, `t`, `k`) con nombres descriptivos; `reportes.py`: `hacer_cosa` → `formatear_dinero` y locales (`s`, `t`, `aux`, `temp`, `p`, `k`, `v`); `almacen.py`: referencias a `contador_ventas` y locales (`d`, `f`, `k`, `v`) | Nombres que dicen qué guardan; `contador_ventas` sigue PEP 8. Claves de dicts/JSON intactas. Ruff 7 → 5 (N816; SIM108 deja de reportarse porque el ternario ya no cabe en 88 caracteres) | 20 passed |
 | 5  | R5 — cálculo de precios común + VIP (ver 5. R5) | `gestor.py`: nuevas `_calcular_descuento_volumen`, `_es_cliente_vip` y `_calcular_montos(subtotal, cliente=None, aplica_vip=False)` con type hints; `registrar_venta` la usa con `aplica_vip=True` y `cotizar` sin VIP | Elimina el cálculo duplicado y los `if` anidados; el VIP queda como opción explícita y `cotizar` sigue sin aplicarlo. Mismos redondeos. Ruff 5 → 1 (SIM102 x3, C901 de `registrar_venta`) | 20 passed |
 | 8  | R8 — dividir menu (ver 5. R8) | `main.py`: una función por opción (`agregar_producto`, `registrar_venta`, `cotizar`, `reporte_inventario`, `resumen_ventas`, `mas_vendidos`, `alertas_stock_bajo`, `guardar_y_salir`), `imprimir_opciones`, diccionario de despacho `ACCIONES` y constante `OPCION_SALIR`; `menu` queda como orquestador | Cada opción se lee y se cambia sola; agregar una opción es una función + una entrada del dict. Salida de consola idéntica (comparada contra `HEAD` por stdin). Ruff 1 → 0 (C901 de `menu`) | 20 passed |
+| 9  | R9 — type hints (ver 5. R9) | `gestor.py`, `almacen.py`, `reportes.py`, `main.py`: anotaciones de parámetros y retorno en todas las firmas que no las tenían (`str \| None`, `int \| None`, `list[dict[str, Any]]`, `dict[str, Any] \| None`, `list[tuple[str, int]]`, …); `from typing import Any` en `gestor.py` y `reportes.py` | Las firmas documentan qué reciben y qué devuelven (incluido el `None`/`False` de error) y habilitan revisión estática. Sin cambios de lógica, nombres ni valores por defecto. Ruff 0 → 0 | 20 passed |
 
 > Agrega más filas si realizas más de 5 refactorizaciones.
 
@@ -413,6 +414,38 @@ Acepté type hints solo en las funciones nuevas. Pedí una verificación con cas
 
 **Mi observacion**
 Claude comparó la consola por stdin (272 y 81 líneas idénticas). Admitió que un comando python leyó datos_ejemplo.json saltándose mi regla deny, lo que confirma la limitación documentada: deny no cubre subprocesos. Lo acepto.
+
+### R9 — type hints
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R9 — agregar type hints a las firmas de las funciones de src/ (sintaxis de Python 3.10+, como str | None).</tarea>
+<restricciones>Respeta CLAUDE.md. Solo modifica archivos de src/ y docs/bitacora.md. Solo anotaciones: no cambies lógica, nombres ni valores por defecto. Comportamiento observable idéntico.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R9: type hints - N passed, ruff X"</commit>
+```
+
+**Aprobación:** CLAUDE.md clasifica los type hints como riesgo bajo y el prompt autoriza aplicarlos, así que Claude mostró el plan y lo aplicó sin esperar.
+
+**Cambio:**
+
+| Archivo | Cambio |
+|---|---|
+| `src/gestor.py` | `from typing import Any`; `reiniciar_sistema() -> None`; `agregarProducto(codigo: str \| None, nombre: str, precio: float, stock: int) -> bool`; `eliminar_producto(codigo: str) -> bool`; `actualizar_stock(codigo: str, cantidad: int) -> bool`; `buscarProducto(texto: str) -> list[dict[str, Any]]`; `registrar_venta(codigo: str \| None, cantidad: int \| None, cliente: str \| None = "") -> dict[str, Any] \| None`; `cotizar(codigo: str, cantidad: int \| None) -> float \| None` |
+| `src/almacen.py` | `guardar_datos`, `cargar_datos` y `hay_archivo`: `(ruta: str) -> bool` |
+| `src/reportes.py` | `from typing import Any`; `formatear_dinero(monto: float) -> str`; `productos_stock_bajo() -> list[dict[str, Any]]`; `reporte_inventario() -> str`; `total_vendido() -> float`; `mas_vendidos(n: int = 3) -> list[tuple[str, int]]`; `resumen_ventas() -> str` |
+| `src/main.py` | `pedir_numero(mensaje: str) -> float` (los demás ya tenían `-> None` desde R8) |
+
+Las funciones de R5 (`_calcular_descuento_volumen`, `_es_cliente_vip`, `_calcular_montos`) y los handlers de R8 ya estaban anotados y no se tocaron. Los `| None` reflejan lo que el código ya acepta (`codigo is None`, `cantidad is None`, `cliente` vacío o `None` en `_es_cliente_vip`) y los `None` de error que devuelven `registrar_venta`/`cotizar`. Valores por defecto (`cliente=""`, `n=3`) y nombres intactos. `git diff -w` solo muestra líneas `def` y los dos `import`. La firma de `registrar_venta` se partió en tres líneas para respetar los 88 caracteres; `ruff format --check src` no pide cambios.
+
+**Justificación:** sin anotaciones había que leer el cuerpo para saber, por ejemplo, que `registrar_venta` devuelve un dict o `None`, o que `mas_vendidos` devuelve pares `(codigo, unidades)`. Con type hints la firma documenta el contrato y un analizador estático puede detectar llamadas incorrectas. Las anotaciones no se evalúan al ejecutar ni cambian el resultado, así que el comportamiento observable es idéntico.
+
+**pytest:** 20 passed.
+**ruff check src:** 0 → 0 (`All checks passed!`; la configuración no activa reglas ANN, así que el conteo no cambia).
+
+**Mi observacion**
 
 ## 6. Ajustes a CLAUDE.md
 
