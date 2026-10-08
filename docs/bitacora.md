@@ -234,6 +234,10 @@ Sin type hints (quedan para R9). `reporteViejoCSV` (SIM115 en `reportes.py`) no 
 
 **Mi observacion** Claude propuso type hints fuera de alcance; los rechacé para mantener el refactor atómico, porque van en R9. También detectó la doble numeración en plan-refactor.md y eligió la del plan final.
 
+Sin type hints, como pedí. Claude verificó a mano los casos de archivo corrupto e inexistente, que no tienen test; ambos devuelven lo mismo que antes. Lo acepto.
+
+
+
 ## 6. Ajustes a CLAUDE.md
 
 /init
