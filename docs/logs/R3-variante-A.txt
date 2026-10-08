@@ -1,0 +1,157 @@
+commit 6cc458503a766e22a3ce5b9a99864c2254f6f016
+Author: GenOscarJCR <josuecoronilladev@gmail.com>
+Date:   Wed Oct 7 20:27:33 2026 -0600
+
+    R3: constantes con nombre - 20 passed, ruff 7
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+diff --git a/docs/bitacora.md b/docs/bitacora.md
+index 68a4ff9..3ac6fcc 100644
+--- a/docs/bitacora.md
++++ b/docs/bitacora.md
+@@ -166,7 +166,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
+ |----|--------------|------------------|---------------|----------|
+ | 1  | R1 — with en persistencia y hay\_archivo (ver 5. R1) | `almacen.py`: `with open(...)` en `guardar_datos`/`cargar_datos`; `hayArchivo` → `hay_archivo` con `return os.path.exists(ruta)`; `main.py` actualizado | Cierre de archivos garantizado; nombre PEP 8; quita if/else redundante. Ruff 13 → 9 (SIM115 x2, N802, SIM103) | 20 passed |
+ | 2  | R2 — eliminar código muerto (ver 5. R2) | `gestor.py`: eliminados `MODO_DEBUG`, `calcular_descuento_viejo` y el bloque comentado `exportar_txt`; `reportes.py`: eliminada `reporteViejoCSV` | Código sin referencias en `src/` ni `tests/` (verificado con búsqueda); menos ruido y mantenimiento. Ruff 9 → 7 (N802, SIM115) | 20 passed |
+-| 3  |              |                  |               |          |
++| 3  | R3 — constantes con nombre (ver 5. R3) | `gestor.py`: `UMBRAL_DESCUENTO_ALTO/MEDIO`, `TASA_DESCUENTO_ALTO/MEDIO`, `PREFIJO_VIP`, `MONTO_MINIMO_VIP`, `TASA_DESCUENTO_VIP`, `TASA_IVA` en `registrar_venta` y `cotizar`; `reportes.py`: `STOCK_MINIMO` en las dos comparaciones `< 5` | Las reglas de negocio quedan con nombre y en un solo lugar; mismos valores. Ruff 7 → 7 (ningún error de ruff cubre números mágicos con esta config) | 20 passed |
+ | 4  |              |                  |               |          |
+ | 5  |              |                  |               |          |
+ 
+@@ -266,6 +266,32 @@ Sin type hints, como pedí. Claude verificó a mano los casos de archivo corrupt
+ 
+ **Mi observacion** Claude confirmó con búsqueda que no había referencias antes y después de borrar. Se saltó el plan previo de CLAUDE.md por interpretar mi autorización como aprobación. Lo acepto, y aclaro la regla en CLAUDE.md v3.
+ 
++### R3 — constantes con nombre
++
++**Prompt:**
++
++```
++Reemplaza los números mágicos por constantes.
++```
++
++**Cambio:**
++
++| Archivo | Cambio | Ruff | Smell |
++|---|---|---|---|
++| `src/gestor.py` | Bloque "Reglas de precios" tras el estado global: `UMBRAL_DESCUENTO_ALTO = 1000`, `TASA_DESCUENTO_ALTO = 0.10`, `UMBRAL_DESCUENTO_MEDIO = 500`, `TASA_DESCUENTO_MEDIO = 0.05`, `PREFIJO_VIP = "VIP"`, `MONTO_MINIMO_VIP = 200`, `TASA_DESCUENTO_VIP = 0.02`, `TASA_IVA = 0.16` | — | S10 |
++| `src/gestor.py` | `registrar_venta`: literales sustituidos; `len(cliente) >= 3` y `cliente[0:3] == "VIP"` → `len(PREFIJO_VIP)` / `PREFIJO_VIP` | — | S10 |
++| `src/gestor.py` | `cotizar`: mismos umbrales, tasas y `TASA_IVA` (sigue sin VIP) | — | S10 |
++| `src/reportes.py` | `STOCK_MINIMO = 5` usado en `productos_stock_bajo` y `reporte_inventario` | — | S7 (parcial), S11 |
++
++No se tocaron los `if` anidados (SIM102/SIM108, quedan para R6/R7), ni el helper `_es_stock_bajo` (R5), ni los `round(..., 2)`, los `0` de inicialización o el `n=3` por defecto de `mas_vendidos` (no son reglas de negocio).
++
++**Justificación:** los números sueltos ocultaban reglas de negocio ("¿qué es 200?") y estaban duplicados entre `registrar_venta` y `cotizar`, y el `< 5` entre dos reportes: cambiar una tasa obligaba a buscarla en varios sitios. Cada expresión conserva su forma (`aux * TASA_DESCUENTO_ALTO` en vez de `aux * 0.10`), así que los floats y redondeos son idénticos.
++
++**Verificación extra (manual):** se comparó la versión anterior (`git show HEAD:src/gestor.py`) contra la nueva en 594 combinaciones (9 precios × 11 cantidades × 6 clientes: `""`, `VIP`, `VIP01`, `VI`, `xVIP`, `vip9`). El dict de venta (sin `fecha`), el ticket y `cotizar` salieron idénticos.
++
++**pytest:** 20 passed.
++**ruff check src:** 7 → 7 (quedan N816, C901 x2, SIM108, SIM102 x3). Era de esperar: la config de ruff no activa PLR2004 (números mágicos).
++
+ 
+ ## 6. Ajustes a CLAUDE.md
+ 
+diff --git a/src/gestor.py b/src/gestor.py
+index 4205fa7..30f9121 100644
+--- a/src/gestor.py
++++ b/src/gestor.py
+@@ -14,6 +14,18 @@ VENTAS = []
+ contadorVentas = 0
+ ultimo_error = ""
+ 
++# ---------------------------------------------------------------
++# Reglas de precios
++# ---------------------------------------------------------------
++UMBRAL_DESCUENTO_ALTO = 1000
++TASA_DESCUENTO_ALTO = 0.10
++UMBRAL_DESCUENTO_MEDIO = 500
++TASA_DESCUENTO_MEDIO = 0.05
++PREFIJO_VIP = "VIP"
++MONTO_MINIMO_VIP = 200
++TASA_DESCUENTO_VIP = 0.02
++TASA_IVA = 0.16
++
+ 
+ def reiniciar_sistema():
+     """Borra todo el estado del sistema (inventario, ventas y folios)."""
+@@ -112,22 +124,22 @@ def registrar_venta(codigo, cantidad, cliente=""):
+     aux = temp2["precio"] * cantidad
+     # descuentos por volumen de compra
+     desc = 0
+-    if aux >= 1000:
+-        desc = aux * 0.10
++    if aux >= UMBRAL_DESCUENTO_ALTO:
++        desc = aux * TASA_DESCUENTO_ALTO
+     else:
+-        if aux >= 500:
+-            desc = aux * 0.05
++        if aux >= UMBRAL_DESCUENTO_MEDIO:
++            desc = aux * TASA_DESCUENTO_MEDIO
+         else:
+             desc = 0
+     # los clientes cuyo codigo empieza con VIP tienen un extra,
+     # pero solo si su compra (ya con descuento) pasa de cierto monto
+     if cliente != "" and cliente is not None:
+-        if len(cliente) >= 3:
+-            if cliente[0:3] == "VIP":
+-                if aux - desc > 200:
+-                    desc = desc + aux * 0.02
++        if len(cliente) >= len(PREFIJO_VIP):
++            if cliente[0 : len(PREFIJO_VIP)] == PREFIJO_VIP:
++                if aux - desc > MONTO_MINIMO_VIP:
++                    desc = desc + aux * TASA_DESCUENTO_VIP
+     base = aux - desc
+-    impuesto = base * 0.16
++    impuesto = base * TASA_IVA
+     total = round(base + impuesto, 2)
+     # descontar del inventario
+     temp2["stock"] = temp2["stock"] - cantidad
+@@ -170,11 +182,11 @@ def cotizar(codigo, cantidad):
+         return None
+     aux = INVENTARIO[codigo]["precio"] * cantidad
+     desc = 0
+-    if aux >= 1000:
+-        desc = aux * 0.10
++    if aux >= UMBRAL_DESCUENTO_ALTO:
++        desc = aux * TASA_DESCUENTO_ALTO
+     else:
+-        if aux >= 500:
+-            desc = aux * 0.05
++        if aux >= UMBRAL_DESCUENTO_MEDIO:
++            desc = aux * TASA_DESCUENTO_MEDIO
+     base = aux - desc
+-    total = base + base * 0.16
++    total = base + base * TASA_IVA
+     return round(total, 2)
+diff --git a/src/reportes.py b/src/reportes.py
+index 0a32c79..bbeecc6 100644
+--- a/src/reportes.py
++++ b/src/reportes.py
+@@ -3,6 +3,8 @@
+ 
+ import gestor
+ 
++STOCK_MINIMO = 5
++
+ 
+ def hacer_cosa(v):
+     # le da formato de dinero al numero
+@@ -13,7 +15,7 @@ def productos_stock_bajo():
+     """Regresa la lista de productos con stock por debajo del minimo."""
+     temp2 = []
+     for k in gestor.INVENTARIO:
+-        if gestor.INVENTARIO[k]["stock"] < 5:
++        if gestor.INVENTARIO[k]["stock"] < STOCK_MINIMO:
+             temp2.append(gestor.INVENTARIO[k])
+     return temp2
+ 
+@@ -26,7 +28,7 @@ def reporte_inventario():
+         p = gestor.INVENTARIO[k]
+         linea = p["codigo"] + " | " + p["nombre"] + " | "
+         linea = linea + hacer_cosa(p["precio"]) + " | stock: " + str(p["stock"])
+-        if p["stock"] < 5:
++        if p["stock"] < STOCK_MINIMO:
+             linea = linea + "  <-- STOCK BAJO"
+         s = s + linea + "\n"
+         aux = aux + p["precio"] * p["stock"]
