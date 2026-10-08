@@ -158,6 +158,8 @@ Plan ajustado: C0 chore (20 → 13) · R1 with + hay_archivo · R2 código muert
 
 Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté: cada refactor se ejecuta por separado, con su propio prompt y su verificación.
 
+- Detecté que plan-refactor.md tenía la numeración original de Claude y no coincidía con mis prompts. Agregué el plan final al inicio del archivo para evitar que Claude confundiera los refactors.
+
 ## 4. Resumen
 
 | #  | Prompt usado | Cambio realizado | Justificación | Tests OK |
@@ -196,6 +198,8 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 
 **pytest:** 20 passed.
 **ruff check src:** 20 → 13 (quedan SIM102 x3, SIM115 x3, C901 x2, N802 x2, SIM108, N816, SIM103).
+
+**Mi observacion** Claude revisó el diff con --fix --diff antes de aplicar y no usó --unsafe-fixes. Los 7 arreglos no tocan la lógica. Lo acepto. Nota: el commit incluyó también mis cambios previos a la bitácora (secciones 2 a 3.6)
 
 ## 6. Ajustes a CLAUDE.md
 
