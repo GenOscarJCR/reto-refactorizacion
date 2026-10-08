@@ -165,7 +165,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 | #  | Prompt usado | Cambio realizado | Justificación | Tests OK |
 |----|--------------|------------------|---------------|----------|
 | 1  | R1 — with en persistencia y hay\_archivo (ver 5. R1) | `almacen.py`: `with open(...)` en `guardar_datos`/`cargar_datos`; `hayArchivo` → `hay_archivo` con `return os.path.exists(ruta)`; `main.py` actualizado | Cierre de archivos garantizado; nombre PEP 8; quita if/else redundante. Ruff 13 → 9 (SIM115 x2, N802, SIM103) | 20 passed |
-| 2  |              |                  |               |          |
+| 2  | R2 — eliminar código muerto (ver 5. R2) | `gestor.py`: eliminados `MODO_DEBUG`, `calcular_descuento_viejo` y el bloque comentado `exportar_txt`; `reportes.py`: eliminada `reporteViejoCSV` | Código sin referencias en `src/` ni `tests/` (verificado con búsqueda); menos ruido y mantenimiento. Ruff 9 → 7 (N802, SIM115) | 20 passed |
 | 3  |              |                  |               |          |
 | 4  |              |                  |               |          |
 | 5  |              |                  |               |          |
@@ -235,6 +235,34 @@ Sin type hints (quedan para R9). `reporteViejoCSV` (SIM115 en `reportes.py`) no 
 **Mi observacion** Claude propuso type hints fuera de alcance; los rechacé para mantener el refactor atómico, porque van en R9. También detectó la doble numeración en plan-refactor.md y eligió la del plan final.
 
 Sin type hints, como pedí. Claude verificó a mano los casos de archivo corrupto e inexistente, que no tienen test; ambos devuelven lo mismo que antes. Lo acepto.
+
+### R2 — eliminar código muerto
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R2 — eliminar código muerto (calcular_descuento_viejo, comentario de exportar_txt, reporteViejoCSV y MODO_DEBUG). Smells: S16, S20, descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Te autorizo explícitamente a eliminar ese código muerto; antes de borrar, confirma con una búsqueda que no tiene referencias en src/ ni tests/. Solo modifica src/gestor.py, src/reportes.py y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R2: eliminar codigo muerto - N passed, ruff X"</commit>
+```
+
+**Verificación previa:** búsqueda de `calcular_descuento_viejo|exportar_txt|reporteViejoCSV|MODO_DEBUG` en `src/` y `tests/`: solo aparecían sus propias definiciones (`gestor.py:16`, `gestor.py:184`, `gestor.py:192`, `reportes.py:81`). Tras el cambio, la misma búsqueda no devuelve nada.
+
+**Cambio:**
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/gestor.py` | Eliminada la constante `MODO_DEBUG = False` (sin uso) | — | S20 |
+| `src/gestor.py` | Eliminada `calcular_descuento_viejo` (fórmula de 2023 que nadie llama) | — | S20 |
+| `src/gestor.py` | Eliminado el bloque comentado `exportar_txt` | — | S20 |
+| `src/reportes.py` | Eliminada `reporteViejoCSV` (camelCase y `open` sin `with`) | N802, SIM115 | S16, S20 |
+
+**Justificación:** el código muerto confunde a quien lee ("¿esto se usa?"), hay que mantenerlo y arrastra sus propios smells (N802, SIM115) sin aportar nada. Como no tiene llamadores en `src/` ni `tests/`, eliminarlo no cambia el comportamiento observable. Si alguna vez hiciera falta, el historial de git lo conserva.
+
+**pytest:** 20 passed.
+**ruff check src:** 9 → 7 (quedan N816, C901 x2, SIM108, SIM102 x3).
 
 
 
