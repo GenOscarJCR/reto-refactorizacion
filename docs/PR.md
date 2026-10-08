@@ -1,4 +1,6 @@
-# Refactorización de "La Esquina" con Claude Code: ruff 20 → 0 sin cambiar el comportamiento
+# feat: Refactoring de La Esquina con Claude Code - mejora de legibilidad y mantenibilidad
+
+**Nombre del participante:** Oscar Josué Coronilla Rangel
 
 ## Resumen
 
@@ -125,3 +127,12 @@ cd src && python main.py
 - **R7 — simplificar reportes** (S7 helper, S8, S25): helper `_es_stock_bajo`, reutilizar
   `total_vendido` en `resumen_ventas` y cambiar la burbuja de `mas_vendidos` por `sorted`
   conservando el orden de empates.
+
+### Sugerencias para mejorar el código base del reto
+
+- **Test para archivo corrupto en `cargar_datos`:** hoy no tiene cobertura; en R1 se verificó a mano
+  que devuelve `False` con `ultimo_error = "archivo corrupto"`.
+- **Test de empates en `mas_vendidos`:** el orden estable de los empates es un comportamiento frágil
+  sin cobertura, y cualquier cambio en el ordenamiento podría romperlo sin que falle ningún test.
+- **Tests para `main.py`:** no tiene tests; la verificación de R8 tuvo que hacerse comparando la
+  consola por stdin contra el commit anterior.
