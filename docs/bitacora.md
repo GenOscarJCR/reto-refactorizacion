@@ -34,16 +34,31 @@ Aplicar Claude Code como herramienta de desarrollo para mejorar código existent
 - reporteViejoCSV: solo existe su definición (findstr sobre src y tests) → código muerto, se elimina.
 
 ### 2.5 .gitignore
+
+```
+# Entornos virtuales
+venv/
+.venv/
+
+# Archivos de caché de Python y pruebas
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+src/datos_ejemplo.json
+
+# Archivos del sistema operativo (macOS)
+.DS_Store
+__MACOSX/
+```
+
 | Entrada | Por qué |
 |---|---|
 |venv/ |se ignoran estas carpetas para limitar el tamaño y además las dependencias se colocan en el archivo requirements.txt|
 |.venv/|se ignoran estas carpetas para limitar el tamaño y además las dependencias se colocan en el archivo requirements.txt|
-'Archivos de caché de Python y pruebas'
 |__pycache__/|Son archivos autogenerados que sirven solo en la compilación local para que inicie más rápido. Es bytecode .pyc que Python regenera solo, no es código fuente|
 |.pytest_cache/|Son archivos autogenerados que sirven solo en la compilación local para que inicie más rápido. Es bytecode .pyc que Python regenera solo, no es código fuente|
 |.ruff_cache/|carpetas generadas automáticamente por Ruff, un formateador y analizador de código (linter) extremadamente rápido para el lenguaje de programación Python|
 |src/datos_ejemplo.json|Archivo generado al correr el main.py dentro de src|
-'Archivos del sistema operativo (macOS)'
 |.DS_Store |Archivos basura que venían  en el zip de descarga|
 |__MACOSX/ |Archivos basura que venían  en el zip de descarga|
 
@@ -590,5 +605,35 @@ Esta identificando que hay información repetida por la solicitud de no modifica
 **Validación** La variante B de R3 quedó bien, y además confirma que CLAUDE.md v3 funcionó: Claude clasificó R3 como de riesgo bajo, mostró el plan y lo aplicó sin esperar, tal como define la nueva regla
 
 
-## Reflexión final (10-15 líneas)
-Ver [reflexion.md]
+## Reflexión final
+
+Ver [reflexion.md](reflexion.md).
+
+## 7. Logs y evidencias
+
+### Logs (`docs/logs/`)
+
+- [00-baseline-pytest.txt](logs/00-baseline-pytest.txt)
+- [00-baseline-ruff.txt](logs/00-baseline-ruff.txt)
+- [01-exploracion-inventario.txt](logs/01-exploracion-inventario.txt)
+- [C0-respuesta-claude-code.txt](logs/C0-respuesta-claude-code.txt)
+- [R3-variante-A.txt](logs/R3-variante-A.txt)
+- [claude-md-v0.md](logs/claude-md-v0.md)
+- [claude-md-v1.md](logs/claude-md-v1.md)
+- [claude-md-v2.md](logs/claude-md-v2.md)
+- [claude-md-v3.md](logs/claude-md-v3.md)
+- [99-final-pytest.txt](logs/99-final-pytest.txt)
+- [99-final-ruff.txt](logs/99-final-ruff.txt)
+
+### Evidencias (`docs/evidencias/`)
+
+- [permisssions_inicio_con_claude_code.png](evidencias/permisssions_inicio_con_claude_code.png)
+- [1_config-deny-docs-logs.png](evidencias/1_config-deny-docs-logs.png)
+- [2_config-deny-docs-logs.png](evidencias/2_config-deny-docs-logs.png)
+- [modo_manual_activo_claude_pregunta.png](evidencias/modo_manual_activo_claude_pregunta.png)
+- [chore_autofixes_ruff_prompt_ejecucion.png](evidencias/chore_autofixes_ruff_prompt_ejecucion.png)
+- [R1-plan-trabajo-Claude-espera-confirmacion.png](evidencias/R1-plan-trabajo-Claude-espera-confirmacion.png)
+- [R1-prueba_funciona_main_despues_de_cambio.png](evidencias/R1-prueba_funciona_main_despues_de_cambio.png)
+- [R2-ejecucion_de_plan_sin-espera-confirmacion.png](evidencias/R2-ejecucion_de_plan_sin-espera-confirmacion.png)
+- [R3_A_1_pide_permiso_p_run_test_ruff.png](evidencias/R3_A_1_pide_permiso_p_run_test_ruff.png)
+- [R3_A_2_trabajando.png](evidencias/R3_A_2_trabajando.png)

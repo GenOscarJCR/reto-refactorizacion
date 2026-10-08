@@ -105,3 +105,31 @@ Trabaja en un **fork** de este repositorio y sigue estos pasos:
 - El comportamiento observable del programa debe mantenerse idéntico.
 - Puedes (y debes) usar Claude Code, pero **tú eres responsable** de revisar,
   entender y validar cada cambio que la IA proponga.
+
+## Cómo ejecutar este fork
+
+**Requisitos:** Python 3.10 o superior y Git.
+
+```bash
+# 1. Clonar el repositorio
+git clone <url-de-este-fork>
+cd reto-refactorizacion
+
+# 2. Crear y activar el entorno virtual (llamado venv)
+python -m venv venv
+venv\Scripts\activate            # Windows
+# source venv/bin/activate       # Linux / macOS
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+
+# 4. Ejecutar las pruebas
+pytest
+
+# 5. Ejecutar el linter
+ruff check src
+```
+
+**Documentación del proceso:** la bitácora de prompts y refactorizaciones está en
+[docs/bitacora.md](docs/bitacora.md) y la reflexión final en
+[docs/reflexion.md](docs/reflexion.md).
