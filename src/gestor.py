@@ -93,6 +93,40 @@ def buscarProducto(texto):
     return resultados
 
 
+def _calcular_descuento_volumen(subtotal: float) -> float:
+    """Descuento por volumen de compra segun el subtotal."""
+    if subtotal >= UMBRAL_DESCUENTO_ALTO:
+        return subtotal * TASA_DESCUENTO_ALTO
+    if subtotal >= UMBRAL_DESCUENTO_MEDIO:
+        return subtotal * TASA_DESCUENTO_MEDIO
+    return 0
+
+
+def _es_cliente_vip(cliente: str | None) -> bool:
+    """Los clientes cuyo codigo empieza con VIP tienen un descuento extra."""
+    return bool(cliente) and cliente.startswith(PREFIJO_VIP)
+
+
+def _calcular_montos(
+    subtotal: float, cliente: str | None = None, aplica_vip: bool = False
+) -> tuple[float, float, float]:
+    """Calcula (descuento, base, impuesto) sin redondear.
+
+    El extra VIP solo se suma si aplica_vip es True y la compra, ya con
+    el descuento por volumen, pasa de MONTO_MINIMO_VIP.
+    """
+    descuento = _calcular_descuento_volumen(subtotal)
+    if (
+        aplica_vip
+        and _es_cliente_vip(cliente)
+        and subtotal - descuento > MONTO_MINIMO_VIP
+    ):
+        descuento = descuento + subtotal * TASA_EXTRA_VIP
+    base = subtotal - descuento
+    impuesto = base * TASA_IVA
+    return descuento, base, impuesto
+
+
 def registrar_venta(codigo, cantidad, cliente=""):
     """Registra una venta completa.
 
@@ -122,24 +156,7 @@ def registrar_venta(codigo, cantidad, cliente=""):
         return None
     # calculo del subtotal
     subtotal = producto["precio"] * cantidad
-    # descuentos por volumen de compra
-    descuento = 0
-    if subtotal >= UMBRAL_DESCUENTO_ALTO:
-        descuento = subtotal * TASA_DESCUENTO_ALTO
-    else:
-        if subtotal >= UMBRAL_DESCUENTO_MEDIO:
-            descuento = subtotal * TASA_DESCUENTO_MEDIO
-        else:
-            descuento = 0
-    # los clientes cuyo codigo empieza con VIP tienen un extra,
-    # pero solo si su compra (ya con descuento) pasa de cierto monto
-    if cliente != "" and cliente is not None:
-        if len(cliente) >= len(PREFIJO_VIP):
-            if cliente[0:len(PREFIJO_VIP)] == PREFIJO_VIP:
-                if subtotal - descuento > MONTO_MINIMO_VIP:
-                    descuento = descuento + subtotal * TASA_EXTRA_VIP
-    base = subtotal - descuento
-    impuesto = base * TASA_IVA
+    descuento, base, impuesto = _calcular_montos(subtotal, cliente, aplica_vip=True)
     total = round(base + impuesto, 2)
     # descontar del inventario
     producto["stock"] = producto["stock"] - cantidad
@@ -181,12 +198,5 @@ def cotizar(codigo, cantidad):
         ultimo_error = "cantidad invalida"
         return None
     subtotal = INVENTARIO[codigo]["precio"] * cantidad
-    descuento = 0
-    if subtotal >= UMBRAL_DESCUENTO_ALTO:
-        descuento = subtotal * TASA_DESCUENTO_ALTO
-    else:
-        if subtotal >= UMBRAL_DESCUENTO_MEDIO:
-            descuento = subtotal * TASA_DESCUENTO_MEDIO
-    base = subtotal - descuento
-    total = base + base * TASA_IVA
-    return round(total, 2)
+    _, base, impuesto = _calcular_montos(subtotal)
+    return round(base + impuesto, 2)

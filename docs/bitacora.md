@@ -168,7 +168,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 | 2  | R2 — eliminar código muerto (ver 5. R2) | `gestor.py`: eliminados `MODO_DEBUG`, `calcular_descuento_viejo` y el bloque comentado `exportar_txt`; `reportes.py`: eliminada `reporteViejoCSV` | Código sin referencias en `src/` ni `tests/` (verificado con búsqueda); menos ruido y mantenimiento. Ruff 9 → 7 (N802, SIM115) | 20 passed |
 | 3  | R3 — constantes con nombre (ver 5. R3) | `gestor.py`: constantes `UMBRAL_DESCUENTO_ALTO/MEDIO`, `TASA_DESCUENTO_ALTO/MEDIO`, `PREFIJO_VIP`, `MONTO_MINIMO_VIP`, `TASA_EXTRA_VIP`, `TASA_IVA` en `registrar_venta` y `cotizar`; `reportes.py`: `STOCK_MINIMO` en `productos_stock_bajo` y `reporte_inventario` | Reglas de negocio con nombre y en un solo lugar; mismos valores numéricos. Ruff 7 → 7 (no hay regla activa para números mágicos) | 20 passed |
 | 4  | R4 — renombrados claros (ver 5. R4) | `gestor.py`: `contadorVentas` → `contador_ventas` y locales (`x`, `aux`, `temp2`, `desc`, `t`, `k`) con nombres descriptivos; `reportes.py`: `hacer_cosa` → `formatear_dinero` y locales (`s`, `t`, `aux`, `temp`, `p`, `k`, `v`); `almacen.py`: referencias a `contador_ventas` y locales (`d`, `f`, `k`, `v`) | Nombres que dicen qué guardan; `contador_ventas` sigue PEP 8. Claves de dicts/JSON intactas. Ruff 7 → 5 (N816; SIM108 deja de reportarse porque el ternario ya no cabe en 88 caracteres) | 20 passed |
-| 5  |              |                  |               |          |
+| 5  | R5 — cálculo de precios común + VIP (ver 5. R5) | `gestor.py`: nuevas `_calcular_descuento_volumen`, `_es_cliente_vip` y `_calcular_montos(subtotal, cliente=None, aplica_vip=False)` con type hints; `registrar_venta` la usa con `aplica_vip=True` y `cotizar` sin VIP | Elimina el cálculo duplicado y los `if` anidados; el VIP queda como opción explícita y `cotizar` sigue sin aplicarlo. Mismos redondeos. Ruff 5 → 1 (SIM102 x3, C901 de `registrar_venta`) | 20 passed |
 
 > Agrega más filas si realizas más de 5 refactorizaciones.
 
@@ -341,6 +341,39 @@ Tres líneas de `reportes.py` se partieron en dos para no rebasar 88 caracteres 
 
 **Mi observacion** 
 Claude comparó la salida del commit anterior contra el nuevo (102 líneas idénticas) y aclaró que SIM108 desapareció por longitud de línea, no por un arreglo real. Lo acepto; el anidamiento se atiende en R5.
+
+### R5 — cálculo de precios común + VIP
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R5 — extraer una función común de cálculo de montos (descuento por volumen e IVA) usada por registrar_venta y cotizar, con el VIP como opción explícita, y aplanar los if anidados del VIP. Smells: S4, S5, S6, descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Solo modifica src/gestor.py y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico. El VIP solo aplica en registrar_venta, nunca en cotizar. Conserva los mismos redondeos y que cotizar coincida con el total de la venta.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R5: calculo de precios comun - N passed, ruff X"</commit>
+```
+
+**Aprobación:** CLAUDE.md lo clasifica como riesgo medio/alto (cálculo de precios), así que Claude presentó el plan y esperó aprobación antes de editar. Al aprobar pedí además comparar la salida del commit anterior contra la nueva en casos límite.
+
+**Cambio:**
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/gestor.py` | Nueva `_calcular_descuento_volumen(subtotal) -> float`: `if`/`if`/`return 0` planos en lugar de `else: if … else: descuento = 0` | (SIM108) | S5 |
+| `src/gestor.py` | Nueva `_es_cliente_vip(cliente) -> bool`: `bool(cliente) and cliente.startswith(PREFIJO_VIP)` reemplaza los 3 `if` de `""`/`None`, longitud y prefijo | SIM102 x3 | S4 |
+| `src/gestor.py` | Nueva `_calcular_montos(subtotal, cliente=None, aplica_vip=False) -> tuple[float, float, float]`: devuelve `(descuento, base, impuesto)` sin redondear; el extra VIP solo si `aplica_vip` y la base ya con descuento por volumen es > `MONTO_MINIMO_VIP` | — | S6 |
+| `src/gestor.py` | `registrar_venta`: el bloque de descuento/VIP/IVA → `_calcular_montos(subtotal, cliente, aplica_vip=True)` | C901 | S6 |
+| `src/gestor.py` | `cotizar`: el bloque duplicado → `_calcular_montos(subtotal)` (sin VIP); devuelve `round(base + impuesto, 2)` | — | S6 |
+
+Sin cambios en la validación de `registrar_venta`, el folio, el stock, el ticket ni las claves del dict. Las funciones existentes siguen sin type hints (R9); solo las nuevas los tienen.
+
+**Justificación:** el mismo cálculo de descuento e IVA estaba copiado en dos funciones; un cambio de regla había que hacerlo dos veces y podía desincronizarse, cuando un test exige que `cotizar` coincida con el total de la venta. Con una sola función ambas usan el mismo código. El VIP pasa a ser un parámetro explícito (`aplica_vip`), así la diferencia entre venta y cotización queda a la vista en la llamada, en lugar de depender de que una copia tenga un bloque que la otra no. Detalles que se preservaron: sin descuento se devuelve el entero `0` (no `0.0`), para que `venta["descuento"]` y el JSON salgan iguales; `base + impuesto` es exactamente la misma operación de punto flotante que `base + base * TASA_IVA`; y los redondeos siguen en `registrar_venta`/`cotizar`, no en la función común.
+
+**Verificación extra (manual):** un script corrió 15 casos contra el `gestor.py` de `HEAD` (19a77d6) y contra el nuevo, comparando `cotizar`, el dict completo de la venta (valores y tipos, sin `fecha`), el ticket, el stock y `ultimo_error`: subtotal exactamente 500 y 1000 (y 499.99 / 999.99); VIP con base exactamente 200 (no aplica) y 200.01 (aplica); VIP con subtotal 500 y 1000; cliente `"VIP"`, `"VI"`, `None`, `""` y `"vip001"` en minúsculas. **Salidas idénticas.** `cotizar == total` da `True` en todos los casos sin VIP y `False` en los 4 con VIP aplicado, igual que antes (cotizar no aplica el extra VIP).
+
+**pytest:** 20 passed.
+**ruff check src:** 5 → 1 (se fueron SIM102 x3 y C901 de `registrar_venta`, que bajó de 12 a ≤ 10 al salir los `if` del cálculo; queda C901 de `menu` en `main.py`).
 
 ## 6. Ajustes a CLAUDE.md
 
