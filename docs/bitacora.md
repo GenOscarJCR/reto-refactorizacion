@@ -166,7 +166,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 |----|--------------|------------------|---------------|----------|
 | 1  | R1 — with en persistencia y hay\_archivo (ver 5. R1) | `almacen.py`: `with open(...)` en `guardar_datos`/`cargar_datos`; `hayArchivo` → `hay_archivo` con `return os.path.exists(ruta)`; `main.py` actualizado | Cierre de archivos garantizado; nombre PEP 8; quita if/else redundante. Ruff 13 → 9 (SIM115 x2, N802, SIM103) | 20 passed |
 | 2  | R2 — eliminar código muerto (ver 5. R2) | `gestor.py`: eliminados `MODO_DEBUG`, `calcular_descuento_viejo` y el bloque comentado `exportar_txt`; `reportes.py`: eliminada `reporteViejoCSV` | Código sin referencias en `src/` ni `tests/` (verificado con búsqueda); menos ruido y mantenimiento. Ruff 9 → 7 (N802, SIM115) | 20 passed |
-| 3  |              |                  |               |          |
+| 3  | R3 — constantes con nombre (ver 5. R3) | `gestor.py`: constantes `UMBRAL_DESCUENTO_ALTO/MEDIO`, `TASA_DESCUENTO_ALTO/MEDIO`, `PREFIJO_VIP`, `MONTO_MINIMO_VIP`, `TASA_EXTRA_VIP`, `TASA_IVA` en `registrar_venta` y `cotizar`; `reportes.py`: `STOCK_MINIMO` en `productos_stock_bajo` y `reporte_inventario` | Reglas de negocio con nombre y en un solo lugar; mismos valores numéricos. Ruff 7 → 7 (no hay regla activa para números mágicos) | 20 passed |
 | 4  |              |                  |               |          |
 | 5  |              |                  |               |          |
 
@@ -265,6 +265,34 @@ Sin type hints, como pedí. Claude verificó a mano los casos de archivo corrupt
 **ruff check src:** 9 → 7 (quedan N816, C901 x2, SIM108, SIM102 x3).
 
 **Mi observacion** Claude confirmó con búsqueda que no había referencias antes y después de borrar. Se saltó el plan previo de CLAUDE.md por interpretar mi autorización como aprobación. Lo acepto, y aclaro la regla en CLAUDE.md v3.
+
+### R3 — constantes con nombre
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R3 — reemplazar números mágicos por constantes con nombre en MAYÚSCULAS (umbrales y tasas de descuento, IVA, VIP, stock mínimo). Smells: S7, S10, S11, descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Solo modifica src/gestor.py, src/reportes.py y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico. Las constantes conservan exactamente los mismos valores numéricos.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R3: constantes con nombre - N passed, ruff X"</commit>
+```
+
+**Cambio:**
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/gestor.py` | Bloque de constantes al inicio: `UMBRAL_DESCUENTO_ALTO = 1000`, `TASA_DESCUENTO_ALTO = 0.10`, `UMBRAL_DESCUENTO_MEDIO = 500`, `TASA_DESCUENTO_MEDIO = 0.05`, `PREFIJO_VIP = "VIP"`, `MONTO_MINIMO_VIP = 200`, `TASA_EXTRA_VIP = 0.02`, `TASA_IVA = 0.16` | — | S10 |
+| `src/gestor.py` | `registrar_venta`: literales reemplazados por las constantes; `len(cliente) >= 3` y `cliente[0:3] == "VIP"` → `len(PREFIJO_VIP)` y `PREFIJO_VIP` | — | S10 |
+| `src/gestor.py` | `cotizar`: umbrales, tasas de descuento e IVA reemplazados por las mismas constantes (sigue sin aplicar el extra VIP) | — | S10 |
+| `src/reportes.py` | Constante `STOCK_MINIMO = 5`, usada en `productos_stock_bajo` y `reporte_inventario` en lugar del `< 5` repetido | — | S7 (parcial), S11 |
+
+No se tocó la estructura (`if` anidados, `else: desc = 0`, burbuja, etc.): SIM102/SIM108/C901 quedan para R6/R7. De S7 solo se unificó el umbral; el helper `_es_stock_bajo` queda para R5.
+
+**Justificación:** los literales 1000, 0.10, 500, 0.05, 200, 0.02, 0.16 y 5 son reglas de negocio sin nombre y estaban duplicados entre `registrar_venta`/`cotizar` y entre dos funciones de `reportes.py`; si cambiara el IVA o un umbral habría que encontrar cada copia. Con constantes, la regla se lee por su nombre y se cambia en un solo lugar. Los valores son exactamente los mismos (mismos `float`), así que los cálculos y redondeos no cambian. `PREFIJO_VIP` con `len(PREFIJO_VIP)` = 3 conserva la comprobación original. Además, deja listas las constantes que usará la función común de precios (R6).
+
+**pytest:** 20 passed.
+**ruff check src:** 7 → 7 (sin cambio esperado: los números mágicos no tienen regla activa en la configuración de ruff; quedan N816, C901 x2, SIM108, SIM102 x3).
 
 
 ## 6. Ajustes a CLAUDE.md
