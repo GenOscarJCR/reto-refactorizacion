@@ -24,7 +24,7 @@ Aplicar Claude Code como herramienta de desarrollo para mejorar código existent
 
 ### 2.3 Línea base (antes de tocar código)
 - pytest: 20 passed in 0.18s → docs/logs/00-baseline-pytest.txt
-- ruff check src: 23 errores (UP009 x4, SIM102 x3, SIM115 x3, C901 x2, N802 x2,
+- ruff check src: 20 errores (UP009 x4, SIM102 x3, SIM115 x3, C901 x2, N802 x2,
   SIM108, N816, SIM103, UP015, I001, F401); 7 autocorregibles → docs/logs/00-baseline-ruff.txt
 
 
@@ -98,6 +98,46 @@ Aplicar Claude Code como herramienta de desarrollo para mejorar código existent
 
 
 ## 3. Exploración
+- "Contexto: /clear al iniciar la fase; CLAUDE.md v2 se recarga solo."
+/clear
+
+Prompt
+<contexto>Fase de exploración. No modifiques nada. Línea base de ruff: UP009 x4, SIM102 x3, SIM115 x3, C901 x2, N802 x2, SIM108, N816, SIM103, UP015, I001, F401.</contexto>
+<tarea>Lee src/ y tests/ e inventaría los code smells en una tabla: ID (S1..), categoría, archivo:función, evidencia (1 línea), códigos ruff relacionados, refactor propuesto, riesgo para tests/comportamientos frágiles.</tarea>
+<restricciones>No edites archivos ni ejecutes comandos. No propongas cambios a tests/ ni pyproject.toml.</restricciones>
+<cobertura>Verifica cada categoría del README: funciones gigantes, duplicación, nombres crípticos, números mágicos, estado global, código muerto, anidamiento excesivo, nombrado mixto. Si no encuentras alguna, dilo. Lista los códigos ruff que no mapeaste.</cobertura>
+<formato>Después de la tabla, agrupa los smells en ≥5 refactors atómicos ordenados de menor a mayor riesgo, justificando el orden.</formato>
+
+Resultado
+
+Encontré 27 smells (S1–S27). Las 8 categorías del README aparecen en el código: funciones gigantes, duplicación, nombres crípticos, números mágicos, estado global, código muerto, anidamiento excesivo y nombrado mixto.
+Los 20 errores de la línea base de ruff corresponden a smells concretos.
+
+Refactors atómicos, de menor a mayor riesgo (en cada paso, pytest debe dar 20 passed)
+
+#	Refactor	Errores de ruff que quita
+R1	Cabeceras e imports	6
+R2	with en almacen.py y hay_archivo	5
+R3	Eliminar código muerto	2
+R4	Constantes y renombrados (contador_ventas, formatear_dinero)	1
+R5	Simplificar reportes.py (sorted estable, helper de stock bajo)	0
+R6	Función de precios común con VIP explícito	4
+R7	Dividir registrar_venta	1
+R8	Dividir menu	1
+
+Con los ocho, ruff baja de 20 a 0.
+
+R3 solo se aplica si lo pides explícitamente, como exige CLAUDE.md.
+R6 y R7 tocan las reglas más frágiles: el VIP que solo aplica a ventas, los redondeos, que cotizar coincida con el total de la venta y el orden de los mensajes de ultimo_error.
+R8 va al final porque main.py no tiene tests; habrá que comparar la salida de la consola a mano.
+
+El estado global (S24) se puede mitigar, pero no eliminar sin romper la API que usan los tests.
+
+[docs\logs\01-exploracion-inventario.txt]
+
+Plan ajustado: C0 chore (20 → 13) · R1 with + hay_archivo · R2 código muerto · R3 constantes · R4 renombrados · R5 reportes · R6 precios comunes + VIP · R7 dividir registrar_venta · R8 dividir menu · R9 type hints.
+
+
 
 ## 4. Resumen
 
