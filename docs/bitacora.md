@@ -167,7 +167,7 @@ Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté:
 | 1  | R1 — with en persistencia y hay\_archivo (ver 5. R1) | `almacen.py`: `with open(...)` en `guardar_datos`/`cargar_datos`; `hayArchivo` → `hay_archivo` con `return os.path.exists(ruta)`; `main.py` actualizado | Cierre de archivos garantizado; nombre PEP 8; quita if/else redundante. Ruff 13 → 9 (SIM115 x2, N802, SIM103) | 20 passed |
 | 2  | R2 — eliminar código muerto (ver 5. R2) | `gestor.py`: eliminados `MODO_DEBUG`, `calcular_descuento_viejo` y el bloque comentado `exportar_txt`; `reportes.py`: eliminada `reporteViejoCSV` | Código sin referencias en `src/` ni `tests/` (verificado con búsqueda); menos ruido y mantenimiento. Ruff 9 → 7 (N802, SIM115) | 20 passed |
 | 3  | R3 — constantes con nombre (ver 5. R3) | `gestor.py`: constantes `UMBRAL_DESCUENTO_ALTO/MEDIO`, `TASA_DESCUENTO_ALTO/MEDIO`, `PREFIJO_VIP`, `MONTO_MINIMO_VIP`, `TASA_EXTRA_VIP`, `TASA_IVA` en `registrar_venta` y `cotizar`; `reportes.py`: `STOCK_MINIMO` en `productos_stock_bajo` y `reporte_inventario` | Reglas de negocio con nombre y en un solo lugar; mismos valores numéricos. Ruff 7 → 7 (no hay regla activa para números mágicos) | 20 passed |
-| 4  |              |                  |               |          |
+| 4  | R4 — renombrados claros (ver 5. R4) | `gestor.py`: `contadorVentas` → `contador_ventas` y locales (`x`, `aux`, `temp2`, `desc`, `t`, `k`) con nombres descriptivos; `reportes.py`: `hacer_cosa` → `formatear_dinero` y locales (`s`, `t`, `aux`, `temp`, `p`, `k`, `v`); `almacen.py`: referencias a `contador_ventas` y locales (`d`, `f`, `k`, `v`) | Nombres que dicen qué guardan; `contador_ventas` sigue PEP 8. Claves de dicts/JSON intactas. Ruff 7 → 5 (N816; SIM108 deja de reportarse porque el ternario ya no cabe en 88 caracteres) | 20 passed |
 | 5  |              |                  |               |          |
 
 > Agrega más filas si realizas más de 5 refactorizaciones.
@@ -305,6 +305,39 @@ Conclusión: En defitiva creo que en la variante A Claude toma el conocimiento d
 Hice un git reset --hard y el commit se queda con la variante B y en logs de evidencia se encuentra el commit de la variante A (6cc4585)
 
 - Mismos valores en las constantes; cotizar sigue sin VIP. El helper de S7 quedó pendiente porque Claude usó la numeración original del plan; lo muevo a R7.
+
+### R4 — renombrados claros
+
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este refactor: R4 — renombrar para claridad: contadorVentas a contador_ventas, hacer_cosa a formatear_dinero y variables locales crípticas a nombres descriptivos. Smells: S12, S13, S14, descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Solo modifica src/gestor.py, src/reportes.py, src/almacen.py y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico. No cambies claves de diccionarios ni del JSON, ni los nombres agregarProducto y buscarProducto. Verifica que ningún test use los nombres que cambias.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md: agrega una fila a la tabla de la sección 4 y, en la sección 5, una entrada con título, este prompt literal en un bloque de código, el cambio (resumen y archivos), la justificación, el resultado de pytest y el conteo de ruff antes → después.</bitacora>
+<commit>Haz un commit: "R4: renombrados claros - N passed, ruff X"</commit>
+```
+
+**Verificación previa:** búsqueda de `contadorVentas|hacer_cosa` en todos los `.py`: solo aparecían en `src/gestor.py`, `src/almacen.py` y `src/reportes.py`. Ningún test ni `main.py` los usa. Tras el cambio, la búsqueda no devuelve nada.
+
+**Cambio:**
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/gestor.py` | Global `contadorVentas` → `contador_ventas` (declaración, `reiniciar_sistema`, `registrar_venta`) | N816 | S14 |
+| `src/gestor.py` | Locales: `agregarProducto` `x` → `producto`; `actualizar_stock` `aux` → `nuevo_stock`; `buscarProducto` `temp2` → `resultados`, `k` → `codigo`; `registrar_venta` `temp2` → `producto`, `aux` → `subtotal`, `desc` → `descuento`, `t` → `ticket`; `cotizar` `aux` → `subtotal`, `desc` → `descuento` | — | S12 |
+| `src/reportes.py` | `hacer_cosa(v)` → `formatear_dinero(monto)` y sus 4 llamadas | — | S13 |
+| `src/reportes.py` | Locales: `productos_stock_bajo` `temp2` → `resultados`; `reporte_inventario` `s` → `reporte`, `aux` → `valor_total`, `p` → `producto`; `total_vendido`/`resumen_ventas` `t` → `total`, `v` → `venta`, `s` → `resumen`; `mas_vendidos` `aux` → `unidades`, `temp` → `ranking`, `t` → `intercambio`; `k` → `codigo` | — | S12 |
+| `src/almacen.py` | `gestor.contadorVentas` → `gestor.contador_ventas` en `guardar_datos` y `cargar_datos`; locales `d` → `datos`, `f` → `archivo`, `k` → `codigo`, `v` → `venta` | — | S12, S14 |
+
+Tres líneas de `reportes.py` se partieron en dos para no rebasar 88 caracteres con los nombres largos; la concatenación da el mismo texto. Las claves de dicts (`"codigo"`, `"descuento"`, `"contador"`, …), los textos y la estructura (ifs anidados, burbuja) no cambiaron. Sin type hints (quedan para R9).
+
+**Justificación:** `x`, `aux`, `temp2`, `t` o `hacer_cosa` obligan a leer el cuerpo para saber qué contienen; con `subtotal`, `descuento`, `ticket` o `formatear_dinero` la función se entiende por sus nombres. Además ayuda a R6, donde el cálculo de precios se extrae con nombres claros. `contador_ventas` sigue la convención `snake_case` del módulo (N816); se actualizó `almacen.py`, que reasigna la global desde fuera. La clave JSON `"contador"` no cambió, así que los archivos guardados antes se siguen cargando.
+
+**Verificación extra (manual):** un script ejecutó las mismas operaciones contra `HEAD` y contra la versión nueva: altas, `actualizar_stock` con error, búsqueda, ventas normales, VIP y fallidas (los 4 mensajes de `ultimo_error`), `cotizar`, los tres reportes, `guardar_datos` y `cargar_datos` (ida y vuelta, y archivo inexistente). Las 102 líneas de salida son idénticas, sin contar `fecha`.
+
+**pytest:** 20 passed.
+**ruff check src:** 7 → 5 (quedan C901 x2, SIM102 x3). Se fue N816 (esperado). SIM108 también dejó de reportarse sin cambio de estructura: ruff no lo sugiere si el ternario resultante pasa de 88 caracteres, y con `descuento`/`subtotal` ya no cabe. El `if/else` anidado sigue ahí y se aplana en R6.
 
 
 
