@@ -294,6 +294,19 @@ No se tocó la estructura (`if` anidados, `else: desc = 0`, burbuja, etc.): SIM1
 **pytest:** 20 passed.
 **ruff check src:** 7 → 7 (sin cambio esperado: los números mágicos no tienen regla activa en la configuración de ruff; quedan N816, C901 x2, SIM108, SIM102 x3).
 
+**Mi observacion** 
+
+"Comparación de variantes":
+
+- Variante A (Prompt de 1 línea "Reemplaza los números mágicos por constantes."): Claude hizo el ciclo completo (tests, ruff, bitácora y commit "R3: constantes con nombre"), tocando gestor.py y reportes.py. Lo atribuyo al contexto persistente: CLAUDE.md, plan-refactor.md y el historial de commits.
+
+Variante B (Prompt estructurado): Nuevamente Claude hizo el ciclo completo de acuerdo a la estructura del Prompt
+Conclusión: En defitiva creo que en la variante A Claude toma el conocimiento del contexto en cada prompt solo he limpieado la pantalla con /clear no he abierto otro chat. 
+Hice un git reset --hard y el commit se queda con la variante B y en logs de evidencia se encuentra el commit de la variante A (6cc4585)
+
+- Mismos valores en las constantes; cotizar sigue sin VIP. El helper de S7 quedó pendiente porque Claude usó la numeración original del plan; lo muevo a R7.
+
+
 
 ## 6. Ajustes a CLAUDE.md
 
@@ -434,6 +447,8 @@ Restricciones quedó idéntica: la imprimí completa después de editar y coinci
 Ahora hay información repetida: los dos últimos puntos de "Restricciones" repiten datos que ya están en "Arquitectura" y en "Detalles". No los toqué porque pediste no modificar las secciones existentes."
 
 Esta identificando que hay información repetida por la solicitud de no modificar lo que ya existe.
+
+**Validación** La variante B de R3 quedó bien, y además confirma que CLAUDE.md v3 funcionó: Claude clasificó R3 como de riesgo bajo, mostró el plan y lo aplicó sin esperar, tal como define la nueva regla
 
 
 ## Reflexión final (10-15 líneas)
