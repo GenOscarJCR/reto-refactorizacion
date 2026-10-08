@@ -67,7 +67,9 @@ Aplicar Claude Code como herramienta de desarrollo para mejorar código existent
 - La bitácora va en docs/bitacora.md (el formato de entrega manda sobre el README, que dice BITACORA.md).
 
 ### 2.8 Permisos y modos de Claude Code
-'{
+```
+settings.json
+{
   "permissions": {
     "deny": [
       "Read(./venv/**)", "Read(./.venv/**)",
@@ -77,7 +79,8 @@ Aplicar Claude Code como herramienta de desarrollo para mejorar código existent
       "Edit(./tests/**)", "Edit(./pyproject.toml)"
     ]
   }
-}'
+}
+```
 
 - Prueda directa para validar .claudeignore: 
     1. Hice la siguiente petición a Claude "Muestra el contenido de docs/logs/00-baseline-pytest.txt"
@@ -98,23 +101,32 @@ Aplicar Claude Code como herramienta de desarrollo para mejorar código existent
 
 
 ## 3. Exploración
-- "Contexto: /clear al iniciar la fase; CLAUDE.md v2 se recarga solo."
-/clear
+
+- Contexto: /clear al iniciar la fase. Modo: Plan (solo lectura).
+
+### 3.1 Prompt
 
 Prompt
+
+```
 <contexto>Fase de exploración. No modifiques nada. Línea base de ruff: UP009 x4, SIM102 x3, SIM115 x3, C901 x2, N802 x2, SIM108, N816, SIM103, UP015, I001, F401.</contexto>
 <tarea>Lee src/ y tests/ e inventaría los code smells en una tabla: ID (S1..), categoría, archivo:función, evidencia (1 línea), códigos ruff relacionados, refactor propuesto, riesgo para tests/comportamientos frágiles.</tarea>
 <restricciones>No edites archivos ni ejecutes comandos. No propongas cambios a tests/ ni pyproject.toml.</restricciones>
 <cobertura>Verifica cada categoría del README: funciones gigantes, duplicación, nombres crípticos, números mágicos, estado global, código muerto, anidamiento excesivo, nombrado mixto. Si no encuentras alguna, dilo. Lista los códigos ruff que no mapeaste.</cobertura>
 <formato>Después de la tabla, agrupa los smells en ≥5 refactors atómicos ordenados de menor a mayor riesgo, justificando el orden.</formato>
-
-Resultado
+```
+### 3.2 Respuesta de Claude Code (resumen)
 
 Encontré 27 smells (S1–S27). Las 8 categorías del README aparecen en el código: funciones gigantes, duplicación, nombres crípticos, números mágicos, estado global, código muerto, anidamiento excesivo y nombrado mixto.
 Los 20 errores de la línea base de ruff corresponden a smells concretos.
 
 Refactors atómicos, de menor a mayor riesgo (en cada paso, pytest debe dar 20 passed)
 
+[Inventario completo](logs/01-exploracion-inventario.txt)
+
+### 3.3 Plan propuesto por Claude
+
+```
 #	Refactor	Errores de ruff que quita
 R1	Cabeceras e imports	6
 R2	with en almacen.py y hay_archivo	5
@@ -124,6 +136,7 @@ R5	Simplificar reportes.py (sorted estable, helper de stock bajo)	0
 R6	Función de precios común con VIP explícito	4
 R7	Dividir registrar_venta	1
 R8	Dividir menu	1
+```
 
 Con los ocho, ruff baja de 20 a 0.
 
@@ -133,14 +146,19 @@ R8 va al final porque main.py no tiene tests; habrá que comparar la salida de l
 
 El estado global (S24) se puede mitigar, pero no eliminar sin romper la API que usan los tests.
 
-[docs\logs\01-exploracion-inventario.txt]
+### 3.4 Mi revisión y ajustes al plan
+
+Ajusto el plan de Claude según el README. Cabeceras, imports y el "r" redundante son autofixes de ruff, así que van en un commit chore que no cuenta como refactor. Divido "constantes y renombrados" en dos commits para que cada diff sea revisable. Agrego type hints, que el README marca como refactor válido y el plan de Claude no incluía.
+
+### 3.5 Plan final
 
 Plan ajustado: C0 chore (20 → 13) · R1 with + hay_archivo · R2 código muerto · R3 constantes · R4 renombrados · R5 reportes · R6 precios comunes + VIP · R7 dividir registrar_venta · R8 dividir menu · R9 type hints.
 
+### 3.6 Observaciones del proceso
 
+Al terminar, el modo Plan pidió aprobar y ejecutar todo el plan. No lo acepté: cada refactor se ejecuta por separado, con su propio prompt y su verificación.
 
 ## 4. Resumen
-
 
 | #  | Prompt usado | Cambio realizado | Justificación | Tests OK |
 |----|--------------|------------------|---------------|----------|
@@ -154,8 +172,32 @@ Plan ajustado: C0 chore (20 → 13) · R1 with + hay_archivo · R2 código muert
 
 ## 5. Detalle por refactor
 
-## 6. Ajustes a CLAUDE.md
+### C0 — chore (no cuenta): autofixes de ruff
 
+**Prompt:**
+
+```
+<tarea>Aplica SOLO este paso: chore — autofixes de ruff con `ruff check src --fix`. Smells: S21, S22, S23 y UP015 (S19), descritos en docs/plan-refactor.md.</tarea>
+<restricciones>Respeta CLAUDE.md. Te autorizo a usar --fix solo en este paso; no cuenta como refactor. Solo modifica archivos de src/ y docs/bitacora.md. No atiendas otros smells. Comportamiento observable idéntico.</restricciones>
+<verificacion>Ejecuta pytest y ruff check src. Si algo falla, corrige el código (nunca los tests) y repite.</verificacion>
+<bitacora>En docs/bitacora.md, sección 5, agrega una entrada "chore (no cuenta)" con este prompt literal en un bloque de código, el cambio (resumen y archivos), el resultado de pytest y el conteo de ruff antes → después. No agregues fila a la tabla de la sección 4.</bitacora>
+<commit>Haz un commit: "chore: autofixes de ruff - N passed, ruff X"</commit>
+```
+
+**Cambio:** se ejecutó `ruff check src --fix` (sin `--unsafe-fixes`). Antes se revisó el diff con
+`--fix --diff`: solo contenía los 7 autofixes esperados, sin cambios de lógica.
+
+| Archivo | Cambio | Ruff | Smell |
+|---|---|---|---|
+| `src/almacen.py` | Quitada cabecera `# -*- coding: utf-8 -*-`; `open(ruta, "r", encoding=...)` → `open(ruta, encoding=...)` | UP009, UP015 | S23, S19 (parcial) |
+| `src/gestor.py` | Quitada cabecera coding | UP009 | S23 |
+| `src/main.py` | Quitada cabecera coding; imports ordenados (`almacen`, `gestor`, `reportes`) | UP009, I001 | S23, S22 |
+| `src/reportes.py` | Quitada cabecera coding; eliminado `import os` sin uso | UP009, F401 | S23, S21 |
+
+**pytest:** 20 passed.
+**ruff check src:** 20 → 13 (quedan SIM102 x3, SIM115 x3, C901 x2, N802 x2, SIM108, N816, SIM103).
+
+## 6. Ajustes a CLAUDE.md
 
 /init
 
@@ -183,7 +225,8 @@ Un dato para la bitácora: tu sección 2.3 dice 23 errores de ruff, pero hoy da 
 
 1er. Prompt: 
 
-"<contexto>Reto: refactorizar este proyecto sin cambiar su comportamiento observable.</contexto>
+```
+<contexto>Reto: refactorizar este proyecto sin cambiar su comportamiento observable.</contexto>
 <tarea>Reescribe CLAUDE.md con estas secciones: Propósito; Comandos (activar venv en Windows cmd con venv\Scripts\activate, pytest, ruff check src, cd src && python main.py); Convenciones (PEP 8, snake_case, type hints, constantes en MAYÚSCULAS, con un ejemplo corto antes/después); Restricciones; Flujo de verificación; Formato de respuesta.</tarea>
 <restricciones>
 - NUNCA modificar tests/ ni pyproject.toml.
@@ -196,22 +239,26 @@ Un dato para la bitácora: tu sección 2.3 dice 23 errores de ruff, pero hoy da 
 </restricciones>
 <formato>Antes de editar código: plan breve, archivos afectados, y esperar mi aprobación.</formato>
 <verificacion>Al terminar, indica qué tomaste de README.md y de pyproject.toml.</verificacion>"
+```
 
 Problemas identificados con este Prompt: "Perdio parte del contexto de importancia de la primer versión de CLAUDE.md, como es; arquitectura, detalles de comportamiento fáciles de romper y código muerto ya identificado", esto fue debido a que en la instrucción del prompt dice "reescribe" en lugar de decirle "integra". Realizare otro prompt para pedirle que recupere lo perdido.
 
 El siguiente es el Prompt para tratar de resolver la perdida anterior:
 
-"<tarea>Reincorpora a CLAUDE.md, Arquitectura, Detalles de comportamiento fáciles de romper y Código muerto del archivo [docs\logs\claude-md-v0.md] que fueron reemplazados en el prompt anterior</tarea>
+```
+<tarea>Reincorpora a CLAUDE.md, Arquitectura, Detalles de comportamiento fáciles de romper y Código muerto del archivo [docs\logs\claude-md-v0.md] que fueron reemplazados en el prompt anterior</tarea>
 <restricciones> 
 - No elimines secciones existentes
 - Solo edita CLAUDE.md, máximo ~80 líneas.
 </restricciones>
 <verificacion>Al terminar, indica qué tomaste de [docs\logs\claude-md-v0.md]</verificacion>"
+```
 
 Sin embargo hay propiamente restricciones de lectura, por consiguiente no se podria ejecutar. 
 
 El siguiente Prompt es el que mande para la corrección con fix con ayuda de Claude. 
 
+```
 <contexto>CLAUDE.md perdió estas secciones del borrador generado por /init. Te las pego literal abajo.</contexto>
 <fuente>
 
@@ -263,7 +310,8 @@ en `reportes.py` (sin referencias en `src/` ni `tests/`). `almacen.hayArchivo` s
 - Solo edita CLAUDE.md; máximo ~120 líneas (condensa la fuente si hace falta, sin perder datos).
 </restricciones>
 <verificacion>Al terminar, dime qué incluiste, qué condensaste, el número total de líneas, y confirma que Restricciones quedó idéntica.</verificacion>
-"
+```
+
 Respuesta después del Prompt:
 
 "Integré las tres secciones en CLAUDE.md, entre "Convenciones" y "Restricciones". El archivo quedó en 115 líneas y solo edité ese archivo.
@@ -288,7 +336,6 @@ Restricciones quedó idéntica: la imprimí completa después de editar y coinci
 Ahora hay información repetida: los dos últimos puntos de "Restricciones" repiten datos que ya están en "Arquitectura" y en "Detalles". No los toqué porque pediste no modificar las secciones existentes."
 
 Esta identificando que hay información repetida por la solicitud de no modificar lo que ya existe.
-
 
 
 ## Reflexión final (10-15 líneas)
